@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAFEFF.EXE | The Human Firewall</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&family=Noto+Kufi+Arabic:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #050508;
+    --green: #00ff88;
+    --green-dim: #00cc6a44;
+    --blue: #0af;
+    --blue-dim: #00aaff22;
+    --purple: #b06aff;
+    --purple-dim: #8844ff22;
+    --white: #e8eaf0;
+    --grey: #3a3d4a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Noto Kufi Arabic', sans-serif;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* CUSTOM CURSOR */
+  .cursor {
+    position: fixed;
+    width: 12px; height: 12px;
+    background: var(--green);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transition: transform 0.1s;
+    mix-blend-mode: screen;
+  }
+  .cursor-ring {
+    position: fixed;
+    width: 36px; height: 36px;
+    border: 1px solid var(--purple);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9998;
+    transition: all 0.15s ease;
+    mix-blend-mode: screen;
+  }
+
+  /* MATRIX BACKGROUND */
+  #matrix-bg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    opacity: 0.06;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* SCANLINE EFFECT */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9990;
+  }
+
+  /* ===== BOOT SCREEN ===== */
+  #boot-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--black);
+    z-index: 9000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 2rem;
+  }
+
+  .boot-line {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+    color: var(--green);
+    opacity: 0;
+    animation: bootFade 0.3s forwards;
+    text-align: left;
+    width: 100%;
+    max-width: 600px;
+  }
+
+  @keyframes bootFade {
+    to { opacity: 1; }
+  }
+
+  .boot-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(2rem, 6vw, 4rem);
+    font-weight: 700;
+    color: var(--white);
+    letter-spacing: 0.3em;
+    opacity: 0;
+    animation: bootFade 0.5s 2.8s forwards;
+    text-align: center;
+  }
+
+  .boot-subtitle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(0.65rem, 1.2vw, 0.8rem);
+    color: var(--purple);
+    letter-spacing: 0.2em;
+    opacity: 0;
+    animation: bootFade 0.5s 3.1s forwards;
+    text-align: center;
+  }
+
+  .boot-bar-wrap {
+    width: 100%;
+    max-width: 600px;
+    height: 2px;
+    background: var(--grey);
+    margin-top: 1rem;
+    opacity: 0;
+    animation: bootFade 0.3s 3.3s forwards;
+  }
+
+  .boot-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), var(--purple));
+    animation: bootBar 1s 3.5s ease-out forwards;
+    width: 0;
+  }
+
+  @keyframes bootBar {
+    to { width: 100%; }
+  }
+
+  .boot-enter-btn {
+    margin-top: 2rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9rem;
+    color: var(--black);
+    background: var(--green);
+    border: none;
+    padding: 0.7rem 2.5rem;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    opacity: 0;
+    animation: bootFade 0.5s 4.7s forwards, bootPulse 2s 5.2s infinite;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    transition: all 0.2s;
+  }
+
+  .boot-enter-btn:hover {
+    background: var(--purple);
+    color: var(--white);
+    transform: scale(1.05);
+  }
+
+  @keyframes bootPulse {
+    0%, 100% { box-shadow: 0 0 10px var(--green); }
+    50% { box-shadow: 0 0 25px var(--green), 0 0 50px var(--green); }
+  }
+
+  #boot-screen.fade-out {
+    animation: fadeOut 0.8s forwards;
+  }
+
+  @keyframes fadeOut {
+    to { opacity: 0; pointer-events: none; }
+  }
+
+  /* ===== MAIN SITE ===== */
+  #main-site {
+    position: relative;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.8s;
+  }
+  #main-site.visible { opacity: 1; }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 3rem;
+    border-bottom: 1px solid rgba(0,255,136,0.1);
+    background: rgba(5,5,8,0.9);
+    backdrop-filter: blur(10px);
+  }
+
+  .nav-logo {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--green);
+    text-shadow: 0 0 20px var(--green);
+  }
+
+  .nav-logo span { color: var(--purple); }
+
+  .nav-links {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
+  }
+
+  .nav-links a {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--grey);
+    text-decoration: none;
+    letter-spacing: 0.15em;
+    transition: color 0.2s;
+    position: relative;
+  }
+
+  .nav-links a::before {
+    content: '> ';
+    color: var(--green);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .nav-links a:hover { color: var(--green); }
+  .nav-links a:hover::before { opacity: 1; }
+
+  .nav-status {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: blink 1.5s infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* SECTIONS */
+  section {
+    min-height: 100vh;
+    padding: 6rem 3rem 4rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  /* HERO */
+  #hero {
+    align-items: flex-start;
+    padding-top: 8rem;
+    gap: 1rem;
+  }
+
+  .hero-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--blue);
+    letter-spacing: 0.3em;
+    border: 1px solid var(--blue);
+    display: inline-block;
+    padding: 0.2rem 0.8rem;
+    margin-bottom: 1rem;
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  }
+
+  .hero-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(3.5rem, 10vw, 8rem);
+    font-weight: 700;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    color: var(--white);
+    position: relative;
+  }
+
+  .hero-name .accent { color: var(--green); text-shadow: 0 0 40px var(--green); }
+
+  .hero-desc {
+    font-size: 1.1rem;
+    color: rgba(232,234,240,0.6);
+    max-width: 500px;
+    line-height: 1.8;
+    margin-top: 1rem;
+  }
+
+  .hero-stats {
+    display: flex;
+    gap: 2.5rem;
+    margin-top: 2.5rem;
+    flex-wrap: wrap;
+  }
+
+  .stat-item {
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+    color: var(--grey);
+    letter-spacing: 0.2em;
+  }
+
+  .stat-value {
+    font-size: 1.2rem;
+    color: var(--green);
+    text-shadow: 0 0 15px var(--green);
+  }
+
+  .hero-line {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-right: 3rem;
+  }
+
+  /* CORNER BRACKETS */
+  .bracket-box {
+    position: relative;
+    padding: 2rem;
+  }
+  .bracket-box::before, .bracket-box::after,
+  .bracket-box > .b-tl, .bracket-box > .b-br {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+  }
+  .bracket-box::before { top: 0; left: 0; border-top: 2px solid var(--green); border-left: 2px solid var(--green); }
+  .bracket-box::after { top: 0; right: 0; border-top: 2px solid var(--green); border-right: 2px solid var(--green); }
+  .bracket-box > .b-bl { content: ''; position: absolute; bottom: 0; left: 0; width: 20px; height: 20px; border-bottom: 2px solid var(--green); border-left: 2px solid var(--green); }
+  .bracket-box > .b-br { bottom: 0; right: 0; border-bottom: 2px solid var(--green); border-right: 2px solid var(--green); }
+
+  /* SECTION HEADERS */
+  .sec-header {
+    margin-bottom: 3rem;
+  }
+
+  .sec-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--purple);
+    letter-spacing: 0.3em;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  .sec-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.05em;
+  }
+
+  .sec-line {
+    width: 60px; height: 2px;
+    background: linear-gradient(90deg, var(--green), transparent);
+    margin-top: 1rem;
+  }
+
+  /* ABOUT */
+  #about { background: rgba(0,255,136,0.01); }
+
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+  }
+
+  .about-text {
+    font-size: 1.05rem;
+    line-height: 2;
+    color: rgba(232,234,240,0.8);
+  }
+
+  .about-text strong { color: var(--green); font-weight: 400; }
+
+  .about-terminal {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    background: rgba(0,255,136,0.03);
+    border: 1px solid rgba(0,255,136,0.15);
+    padding: 1.5rem;
+    line-height: 2;
+    position: relative;
+  }
+
+  .term-line { color: var(--green); }
+  .term-comment { color: var(--grey); }
+  .term-prompt::before { content: '$ '; color: var(--purple); }
+  .term-cursor {
+    display: inline-block;
+    width: 8px; height: 14px;
+    background: var(--green);
+    animation: blink 1s infinite;
+    vertical-align: middle;
+  }
+
+  /* CYBER DEFENSE */
+  #cyber { background: rgba(0,170,255,0.01); }
+
+  .skills-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+
+  .skill-card {
+    border: 1px solid rgba(0,170,255,0.2);
+    padding: 1.5rem;
+    position: relative;
+    background: rgba(0,170,255,0.03);
+    transition: all 0.3s;
+    clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 15px 100%, 0 calc(100% - 15px));
+  }
+
+  .skill-card:hover {
+    border-color: var(--blue);
+    background: rgba(0,170,255,0.08);
+    transform: translateY(-4px);
+    box-shadow: 0 0 30px rgba(0,170,255,0.15);
+  }
+
+  .skill-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .skill-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--blue);
+    margin-bottom: 0.4rem;
+  }
+
+  .skill-desc {
+    font-size: 0.85rem;
+    color: rgba(232,234,240,0.55);
+    line-height: 1.7;
+  }
+
+  .skill-bar-wrap {
+    height: 2px;
+    background: var(--grey);
+    margin-top: 1rem;
+    overflow: hidden;
+  }
+
+  .skill-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--blue), var(--purple));
+    width: 0;
+    transition: width 1.5s ease;
+  }
+
+  .cyber-quote {
+    margin-top: 3rem;
+    border-right: 3px solid var(--blue);
+    padding-right: 1.5rem;
+    font-size: 1.1rem;
+    color: rgba(232,234,240,0.7);
+    font-style: italic;
+    line-height: 1.9;
+  }
+
+  /* AI LAB */
+  #ai { background: rgba(176,106,255,0.01); }
+
+  .ai-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 3rem;
+    align-items: start;
+  }
+
+  .ai-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .ai-card {
+    border: 1px solid rgba(176,106,255,0.2);
+    padding: 1.2rem;
+    background: rgba(176,106,255,0.04);
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ai-card::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle, rgba(176,106,255,0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .ai-card:hover { border-color: var(--purple); transform: translateY(-3px); }
+  .ai-card:hover::before { opacity: 1; }
+
+  .ai-card-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--purple);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.4rem;
+  }
+
+  .ai-card-desc {
+    font-size: 0.78rem;
+    color: rgba(232,234,240,0.5);
+    line-height: 1.6;
+  }
+
+  .ai-visual {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .neural-net {
+    height: 200px;
+    position: relative;
+  }
+
+  .ai-quote {
+    font-size: 1.1rem;
+    line-height: 2;
+    color: rgba(232,234,240,0.75);
+    border-bottom: 1px solid rgba(176,106,255,0.2);
+    padding-bottom: 1.5rem;
+  }
+
+  .ai-quote strong { color: var(--purple); font-weight: 400; }
+
+  /* SECRET ACCESS */
+  #secret {
+    align-items: center;
+    text-align: center;
+  }
+
+  .secret-lock {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    filter: drop-shadow(0 0 20px var(--purple));
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .secret-input-wrap {
+    position: relative;
+    margin: 2rem auto;
+    max-width: 400px;
+  }
+
+  .secret-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid var(--purple);
+    color: var(--white);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.2rem;
+    letter-spacing: 0.4em;
+    padding: 0.8rem 0;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+
+  .secret-input::placeholder {
+    color: rgba(176,106,255,0.3);
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+  }
+
+  .secret-input:focus { border-color: var(--green); }
+
+  .secret-btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    color: var(--black);
+    background: var(--purple);
+    border: none;
+    padding: 0.8rem 2.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    margin-top: 1rem;
+  }
+
+  .secret-btn:hover { background: var(--green); transform: scale(1.05); }
+
+  #secret-result {
+    max-width: 600px;
+    margin: 0 auto;
+    display: none;
+  }
+
+  #secret-result.show { display: block; animation: revealMsg 0.8s ease; }
+
+  @keyframes revealMsg {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .access-granted {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--green);
+    letter-spacing: 0.3em;
+    margin-bottom: 1.5rem;
+    text-shadow: 0 0 20px var(--green);
+  }
+
+  .secret-message {
+    font-size: 1.05rem;
+    line-height: 2.2;
+    color: rgba(232,234,240,0.9);
+    border: 1px solid rgba(176,106,255,0.3);
+    padding: 2rem;
+    background: rgba(176,106,255,0.05);
+    text-align: right;
+    position: relative;
+  }
+
+  .secret-message::before {
+    content: '💜';
+    position: absolute;
+    top: -15px; right: 50%;
+    transform: translateX(50%);
+    font-size: 1.5rem;
+    filter: drop-shadow(0 0 10px var(--purple));
+  }
+
+  #secret-error {
+    color: #ff4466;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    margin-top: 0.5rem;
+    display: none;
+  }
+
+  /* GLITCH EFFECT */
+  .glitch {
+    position: relative;
+  }
+
+  .glitch::before, .glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  .glitch::before {
+    color: var(--blue);
+    animation: glitch1 3s infinite;
+    clip-path: polygon(0 30%, 100% 30%, 100% 50%, 0 50%);
+  }
+
+  .glitch::after {
+    color: var(--purple);
+    animation: glitch2 3s infinite;
+    clip-path: polygon(0 65%, 100% 65%, 100% 75%, 0 75%);
+  }
+
+  @keyframes glitch1 {
+    0%, 95%, 100% { transform: translateX(0); opacity: 0; }
+    96% { transform: translateX(-3px); opacity: 0.8; }
+    98% { transform: translateX(3px); opacity: 0.8; }
+  }
+
+  @keyframes glitch2 {
+    0%, 93%, 100% { transform: translateX(0); opacity: 0; }
+    94% { transform: translateX(3px); opacity: 0.7; }
+    96% { transform: translateX(-3px); opacity: 0.7; }
+  }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 2rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--grey);
+    letter-spacing: 0.2em;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+
+  /* HEXAGON GRID DECORATION */
+  .hex-deco {
+    position: absolute;
+    right: 2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.06;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    line-height: 1.5;
+    letter-spacing: 0.1em;
+    color: var(--green);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* SCROLL INDICATOR */
+  .scroll-line {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--grey);
+  }
+
+  .scroll-line::after {
+    content: '';
+    width: 1px;
+    height: 40px;
+    background: linear-gradient(var(--green), transparent);
+    animation: scrollPulse 2s infinite;
+  }
+
+  @keyframes scrollPulse {
+    0% { opacity: 0; transform: scaleY(0); transform-origin: top; }
+    50% { opacity: 1; }
+    100% { opacity: 0; transform: scaleY(1); transform-origin: top; }
+  }
+
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { display: none; }
+    section { padding: 5rem 1.5rem 3rem; }
+    .about-grid, .ai-grid { grid-template-columns: 1fr; }
+    .hero-line { display: none; }
+    .ai-cards { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- CURSOR -->
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- MATRIX CANVAS -->
+<canvas id="matrix-bg"></canvas>
+
+<!-- ===== BOOT SCREEN ===== -->
+<div id="boot-screen">
+  <div class="boot-line" style="animation-delay:0.2s">[ RAFEFF SECURITY SYSTEM v4.2.1 ]</div>
+  <div class="boot-line" style="animation-delay:0.6s; color: #888">Initializing core modules...</div>
+  <div class="boot-line" style="animation-delay:0.9s">✓ Neural Engine: <span style="color:#00ff88">ONLINE</span></div>
+  <div class="boot-line" style="animation-delay:1.2s">✓ Cyber Defense: <span style="color:#00ff88">ACTIVE</span></div>
+  <div class="boot-line" style="animation-delay:1.5s">✓ AI Core: <span style="color:#00ff88">LOADED</span></div>
+  <div class="boot-line" style="animation-delay:1.8s">✓ Threat Analysis: <span style="color:#00ff88">RUNNING</span></div>
+  <div class="boot-line" style="animation-delay:2.1s; color:#b06aff">⚡ Human Firewall: <span style="color:#00ff88">ENABLED</span></div>
+  <div class="boot-line" style="animation-delay:2.4s; color:#888">—————————————————————————</div>
+  <div class="boot-title glitch" data-text="RAFEFF.EXE" style="margin-top:1rem;">RAFEFF.EXE</div>
+  <div class="boot-subtitle">THE HUMAN FIREWALL | SECURITY LEVEL: MAXIMUM</div>
+  <div class="boot-bar-wrap"><div class="boot-bar"></div></div>
+  <button class="boot-enter-btn" onclick="enterSite()">[ ENTER SYSTEM ]</button>
+</div>
+
+<!-- ===== MAIN SITE ===== -->
+<div id="main-site">
+
+  <nav>
+    <div class="nav-logo">RAF<span>EFF</span>.exe</div>
+    <ul class="nav-links">
+      <li><a href="#about">SYSTEM</a></li>
+      <li><a href="#cyber">CYBER</a></li>
+      <li><a href="#ai">AI LAB</a></li>
+      <li><a href="#secret">ACCESS</a></li>
+    </ul>
+    <div class="nav-status">
+      <div class="status-dot"></div>
+      SECURE CONNECTION
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero">
+    <div class="hero-tag">// HUMAN FIREWALL DETECTED</div>
+    <h1 class="hero-name">
+      <span class="glitch" data-text="رفيف">رفيف</span><br>
+      <span class="accent">RAFEFF</span>
+    </h1>
+    <p class="hero-desc">
+      عقل يحلل. نظام يحمي. مستقبل يُصنع بالكود.
+    </p>
+    <div class="hero-stats">
+      <div class="stat-item">
+        <div class="stat-label">THREATS BLOCKED</div>
+        <div class="stat-value">∞</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">IDEAS GENERATED</div>
+        <div class="stat-value">UNLIMITED</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">POTENTIAL</div>
+        <div class="stat-value">UNDEFINED</div>
+      </div>
+    </div>
+    <div class="scroll-line">SCROLL</div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about">
+    <div class="sec-header">
+      <span class="sec-tag">// 01 — SYSTEM OVERVIEW</span>
+      <h2 class="sec-title">نظرة عامة<br><small style="color:var(--green);font-size:0.6em">ABOUT THE SYSTEM</small></h2>
+      <div class="sec-line"></div>
+    </div>
+    <div class="about-grid">
+      <div>
+        <p class="about-text">
+          رفيف ليست مجرد طالبة تكنولوجيا معلومات.<br><br>
+          هي <strong>عقل يحلل، يحمي، ويبتكر</strong>. تفكر بخوارزميات، ترى الثغرات قبل أن تظهر، وتؤمن أن المستقبل يُبنى بالكود… لا بالكلام.<br><br>
+          متخصصة في <strong>الأمن السيبراني</strong>، ترى العالم شبكة مترابطة من البيانات، وتعرف كيف تحميها.<br><br>
+          وفي <strong>الذكاء الاصطناعي</strong>، لا تستخدم التقنية فقط… بل تفهم منطقها، وتعيد تشكيله.
+        </p>
+      </div>
+      <div class="about-terminal">
+        <div class="term-comment">// rafeff_profile.json</div>
+        <div class="term-line">{</div>
+        <div class="term-line">&nbsp;&nbsp;"name": "رفيف",</div>
+        <div class="term-line">&nbsp;&nbsp;"role": "Human Firewall",</div>
+        <div class="term-line">&nbsp;&nbsp;"major": "Information Technology",</div>
+        <div class="term-line">&nbsp;&nbsp;"specialization": [</div>
+        <div class="term-line">&nbsp;&nbsp;&nbsp;&nbsp;"Cybersecurity",</div>
+        <div class="term-line">&nbsp;&nbsp;&nbsp;&nbsp;"Artificial Intelligence"</div>
+        <div class="term-line">&nbsp;&nbsp;],</div>
+        <div class="term-line">&nbsp;&nbsp;"threat_level": "MAXIMUM",</div>
+        <div class="term-line">&nbsp;&nbsp;"status": "ACTIVE"</div>
+        <div class="term-line">}</div>
+        <div style="margin-top:1rem" class="term-prompt">running analysis...<span class="term-cursor"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CYBER DEFENSE -->
+  <section id="cyber">
+    <div class="sec-header">
+      <span class="sec-tag">// 02 — CYBER DEFENSE MODE 🔐</span>
+      <h2 class="sec-title">الأمن السيبراني<br><small style="color:var(--blue);font-size:0.6em">DEFENSE PROTOCOL ACTIVE</small></h2>
+      <div class="sec-line" style="background:linear-gradient(90deg,var(--blue),transparent)"></div>
+    </div>
+    <div class="skills-grid">
+      <div class="skill-card">
+        <div class="skill-icon">🔍</div>
+        <div class="skill-name">Vulnerability Analysis</div>
+        <div class="skill-desc">تحليل الثغرات واكتشاف نقاط الضعف قبل أن يفعلها المهاجمون</div>
+        <div class="skill-bar-wrap"><div class="skill-bar" data-width="92"></div></div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon">🛡️</div>
+        <div class="skill-name">System Protection</div>
+        <div class="skill-desc">بناء جدران الحماية وتأمين الأنظمة والبنية التحتية الرقمية</div>
+        <div class="skill-bar-wrap"><div class="skill-bar" data-width="88"></div></div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon">⚔️</div>
+        <div class="skill-name">Offensive Thinking</div>
+        <div class="skill-desc">التفكير الهجومي لفهم كيفية الاختراق لبناء دفاع أقوى</div>
+        <div class="skill-bar-wrap"><div class="skill-bar" data-width="85"></div></div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon">⚖️</div>
+        <div class="skill-name">Ethical Mindset</div>
+        <div class="skill-desc">مبادئ أخلاقية راسخة: التقنية لخدمة الإنسان وحمايته</div>
+        <div class="skill-bar-wrap"><div class="skill-bar" data-width="100"></div></div>
+      </div>
+    </div>
+    <blockquote class="cyber-quote">
+      في عالم مليء بالاختراقات، رفيف لا تبحث عن المشاكل…<br>
+      <strong style="color:var(--blue)">المشاكل تبحث عنها لتُحلّها.</strong>
+    </blockquote>
+  </section>
+
+  <!-- AI LAB -->
+  <section id="ai">
+    <div class="sec-header">
+      <span class="sec-tag">// 03 — AI LABORATORY 🤖</span>
+      <h2 class="sec-title">مختبر الذكاء<br><small style="color:var(--purple);font-size:0.6em">ARTIFICIAL INTELLIGENCE CORE</small></h2>
+      <div class="sec-line" style="background:linear-gradient(90deg,var(--purple),transparent)"></div>
+    </div>
+    <div class="ai-grid">
+      <div>
+        <p class="ai-quote">
+          هي لا تخاف من المستقبل…<br>
+          <strong>هي تصممه.</strong><br><br>
+          ترى في الذكاء الاصطناعي أداة لتطوير البشرية، لا تهديدًا لها.
+        </p>
+        <div class="ai-cards" style="margin-top:2rem">
+          <div class="ai-card">
+            <div class="ai-card-title">Machine Learning</div>
+            <div class="ai-card-desc">تدريب النماذج وتطوير خوارزميات التعلم الآلي</div>
+          </div>
+          <div class="ai-card">
+            <div class="ai-card-title">Neural Networks</div>
+            <div class="ai-card-desc">هندسة الشبكات العصبية العميقة</div>
+          </div>
+          <div class="ai-card">
+            <div class="ai-card-title">Data Analysis</div>
+            <div class="ai-card-desc">استخراج المعنى من الفوضى الرقمية</div>
+          </div>
+          <div class="ai-card">
+            <div class="ai-card-title">Future Vision</div>
+            <div class="ai-card-desc">رؤية تشكيل التقنية لعالم أفضل</div>
+          </div>
+        </div>
+      </div>
+      <div class="ai-visual">
+        <canvas id="neural-canvas" width="400" height="250" style="width:100%"></canvas>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--grey);text-align:center;letter-spacing:0.2em">
+          — NEURAL NETWORK SIMULATION —
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECRET ACCESS -->
+  <section id="secret">
+    <div class="sec-header" style="text-align:center">
+      <span class="sec-tag">// 04 — RESTRICTED ZONE</span>
+      <h2 class="sec-title">🔒 Secret Access</h2>
+      <div class="sec-line" style="margin:1rem auto 0;background:linear-gradient(90deg,var(--purple),var(--green))"></div>
+    </div>
+
+    <div style="text-align:center">
+      <div class="secret-lock">🔐</div>
+      <p style="font-family:'Share Tech Mono',monospace;font-size:0.8rem;color:var(--grey);letter-spacing:0.2em">
+        AUTHORIZED PERSONNEL ONLY — ENTER ACCESS CODE
+      </p>
+
+      <div class="secret-input-wrap">
+        <input type="password" class="secret-input" id="secretInput" placeholder="ENTER ACCESS CODE" maxlength="20">
+        <div id="secret-error">⚠ ACCESS DENIED — INVALID CODE</div>
+        <br>
+        <button class="secret-btn" onclick="checkSecret()">[ AUTHENTICATE ]</button>
+      </div>
+
+      <div id="secret-result">
+        <div class="access-granted">✓ ACCESS GRANTED — TRUSTED ENTITY DETECTED</div>
+        <div class="bracket-box secret-message" style="text-align:right">
+          <div class="b-bl"></div><div class="b-br"></div>
+          رفيف،<br><br>
+          أنتِ لستِ مجرد اسم في قائمة الطلاب…<br>
+          أنتِ دليل على أن العقل حين يجتمع مع الطموح، لا حدود لما يمكنه صنعه.<br><br>
+          في كل كود تكتبينه، وكل ثغرة تجدينها، وكل نموذج تبنينه —<br>
+          أرى شخصًا يرفض أن يكون عاديًا.<br><br>
+          استمري في التفكير بخوارزميات، واستمري في رؤية العالم كنظام يمكن تحسينه…<br>
+          لأن المستقبل يحتاج عقولًا مثل عقلك.<br><br>
+          <strong style="color:var(--purple)">ESTEBRAQ 💜 — تظل معك دائمًا</strong>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    RAFEFF.EXE v4.2.1 — THE HUMAN FIREWALL — ALL SYSTEMS OPERATIONAL — 2025
+  </footer>
+
+</div><!-- end main-site -->
+
+<script>
+// ===== CURSOR =====
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursorRing');
+let mx = 0, my = 0, rx = 0, ry = 0;
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; cursor.style.left = mx - 6 + 'px'; cursor.style.top = my - 6 + 'px'; });
+setInterval(() => {
+  rx += (mx - rx) * 0.15;
+  ry += (my - ry) * 0.15;
+  ring.style.left = rx - 18 + 'px';
+  ring.style.top = ry - 18 + 'px';
+}, 16);
+
+// ===== MATRIX BACKGROUND =====
+const canvas = document.getElementById('matrix-bg');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+const cols = Math.floor(canvas.width / 20);
+const drops = Array(cols).fill(1);
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(5,5,8,0.05)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#00ff88';
+  ctx.font = '14px Share Tech Mono';
+  for (let i = 0; i < drops.length; i++) {
+    const text = String.fromCharCode(0x30A0 + Math.random() * 96);
+    ctx.fillText(text, i * 20, drops[i] * 20);
+    if (drops[i] * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+    drops[i]++;
+  }
+}
+setInterval(drawMatrix, 50);
+window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+
+// ===== BOOT =====
+function enterSite() {
+  document.getElementById('boot-screen').classList.add('fade-out');
+  setTimeout(() => {
+    document.getElementById('boot-screen').style.display = 'none';
+    document.getElementById('main-site').classList.add('visible');
+    animateSkillBars();
+    drawNeuralNet();
+  }, 800);
+}
+
+// Auto-remove boot after delay if user doesn't click
+setTimeout(() => {
+  if (!document.getElementById('main-site').classList.contains('visible')) {
+    enterSite();
+  }
+}, 8000);
+
+// ===== SKILL BARS =====
+function animateSkillBars() {
+  const bars = document.querySelectorAll('.skill-bar');
+  bars.forEach(bar => {
+    setTimeout(() => {
+      bar.style.width = bar.dataset.width + '%';
+    }, 300);
+  });
+}
+
+// ===== NEURAL NETWORK CANVAS =====
+function drawNeuralNet() {
+  const nc = document.getElementById('neural-canvas');
+  if (!nc) return;
+  const nctx = nc.getContext('2d');
+  const W = nc.width, H = nc.height;
+
+  const layers = [[1,2,3], [1,2,3,4], [1,2,3,4], [1,2,3]];
+  const nodes = [];
+
+  layers.forEach((layer, li) => {
+    const x = (li + 1) * W / (layers.length + 1);
+    layer.forEach((_, ni) => {
+      const y = (ni + 1) * H / (layer.length + 1);
+      nodes.push({ x, y, li });
+    });
+  });
+
+  const colors = ['#00ff88', '#00aaff', '#b06aff', '#00ff88'];
+
+  function draw(t) {
+    nctx.clearRect(0, 0, W, H);
+    // Connections
+    const layerNodes = layers.map((l, i) => nodes.filter(n => n.li === i));
+    for (let i = 0; i < layerNodes.length - 1; i++) {
+      layerNodes[i].forEach(a => {
+        layerNodes[i + 1].forEach(b => {
+          const pulse = (Math.sin(t * 0.02 + a.x + b.y) + 1) / 2;
+          nctx.beginPath();
+          nctx.moveTo(a.x, a.y);
+          nctx.lineTo(b.x, b.y);
+          nctx.strokeStyle = `rgba(176,106,255,${0.05 + pulse * 0.2})`;
+          nctx.lineWidth = 0.5;
+          nctx.stroke();
+        });
+      });
+    }
+    // Nodes
+    nodes.forEach(n => {
+      const pulse = (Math.sin(t * 0.03 + n.x) + 1) / 2;
+      nctx.beginPath();
+      nctx.arc(n.x, n.y, 5 + pulse * 3, 0, Math.PI * 2);
+      nctx.fillStyle = colors[n.li];
+      nctx.shadowColor = colors[n.li];
+      nctx.shadowBlur = 10 + pulse * 10;
+      nctx.fill();
+      nctx.shadowBlur = 0;
+    });
+    requestAnimationFrame(t2 => draw(t2));
+  }
+  requestAnimationFrame(t => draw(t));
+}
+
+// ===== SECRET ACCESS =====
+function checkSecret() {
+  const val = document.getElementById('secretInput').value.toUpperCase().trim();
+  const err = document.getElementById('secret-error');
+  const res = document.getElementById('secret-result');
+
+  if (val === 'ESTEBRAQ') {
+    err.style.display = 'none';
+    res.classList.add('show');
+    // Confetti-like effect
+    document.getElementById('secretInput').style.borderColor = '#00ff88';
+  } else {
+    err.style.display = 'block';
+    res.classList.remove('show');
+    document.getElementById('secretInput').style.animation = 'none';
+    setTimeout(() => { document.getElementById('secretInput').style.animation = ''; }, 10);
+  }
+}
+
+document.getElementById('secretInput')?.addEventListener('keypress', e => {
+  if (e.key === 'Enter') checkSecret();
+});
+
+// ===== SMOOTH SCROLL =====
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+</script>
+</body>
+</html>
